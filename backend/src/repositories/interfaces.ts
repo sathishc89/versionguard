@@ -4,6 +4,7 @@ export interface DocumentRepository {
   create(userId: string, name: string, description: string | undefined, now: string): Promise<DocumentRecord>;
   listByUser(userId: string): Promise<DocumentRecord[]>;
   getOwned(userId: string, documentId: string): Promise<DocumentRecord | undefined>;
+  delete(userId: string, documentId: string): Promise<void>;
   allocateVersion(userId: string, documentId: string, now: string): Promise<{ document: DocumentRecord; versionNumber: number }>;
   recordCompletedVersion(userId: string, documentId: string, versionNumber: number, now: string): Promise<void>;
 }
@@ -14,6 +15,7 @@ export interface VersionRepository {
   listOwned(userId: string, documentId: string): Promise<VersionRecord[]>;
   complete(version: VersionRecord, completedAt: string): Promise<VersionRecord>;
   findByHash(userId: string, documentId: string, sha256: string): Promise<VersionRecord | undefined>;
+  delete(userId: string, documentId: string, versionNumber: number): Promise<void>;
 }
 
 export interface StatsRepository {

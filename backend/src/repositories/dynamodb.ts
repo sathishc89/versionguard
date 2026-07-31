@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'node:crypto';
 import { DocumentRecord, UserStats, VersionRecord } from '@versionguard/shared';
 import { DocumentRepository, StatsRepository, VersionRepository } from './interfaces.js';
@@ -22,6 +22,10 @@ export class DynamoDocumentRepository implements DocumentRepository {
   async getOwned(userId: string, documentId: string): Promise<DocumentRecord | undefined> {
     const result = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, ConsistentRead: true }));
     return result.Item as DocumentRecord | undefined;
+  }
+
+  async delete(userId: string, documentId: string): Promise<void> {
+    await this.client.send(new DeleteCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, ConditionExpression: 'attribute_exists(userId)' }));
   }
 
   async allocateVersion(userId: string, documentId: string, now: string) {
@@ -66,6 +70,12 @@ export class DynamoVersionRepository implements VersionRepository {
   async findByHash(userId: string, documentId: string, sha256: string): Promise<VersionRecord | undefined> {
     const versions = await this.listOwned(userId, documentId);
     return versions.find((version) => version.sha256 === sha256 && version.status === 'COMPLETE');
+  }
+
+  async delete(userId: string, documentId: string, versionNumber: number): Promise<void> {
+    const version = await this.getOwned(userId, documentId, versionNumber);
+    if (!version) return;
+    await this.client.send(new DeleteCommand({ TableName: this.tableName, Key: { documentId, versionNumber } }));
   }
 }
 

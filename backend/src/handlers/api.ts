@@ -42,6 +42,7 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     if (!documentId) return response(404, { message: 'Route not found.', requestId }, requestId);
     if (method === 'GET' && path === `/documents/${documentId}`) return response(200, await service.getDocument(userId, documentId), requestId);
     if (method === 'GET' && path === `/documents/${documentId}/versions`) return response(200, await service.listVersions(userId, documentId), requestId);
+    if (method === 'DELETE' && path === `/documents/${documentId}`) { await service.deleteDocument(userId, documentId); return response(200, { deleted: true }, requestId); }
     if (method === 'POST' && path === `/documents/${documentId}/versions/presign`) return response(201, await service.presignVersion(userId, documentId, parseBody(event)), requestId);
     if (method === 'POST' && path === `/documents/${documentId}/versions/${versionNumber}/complete`) return response(200, await service.completeVersion(userId, documentId, versionNumber), requestId);
     if (method === 'GET' && path === `/documents/${documentId}/versions/${versionNumber}/download-url`) return response(200, await service.createDownloadUrl(userId, documentId, versionNumber), requestId);

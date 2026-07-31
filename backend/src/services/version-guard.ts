@@ -91,6 +91,16 @@ export class VersionGuardService {
     return completed;
   }
 
+  async deleteDocument(userId: string, documentId: string): Promise<void> {
+    await this.getDocument(userId, documentId);
+    const versions = await this.dependencies.versions.listOwned(userId, documentId);
+    await Promise.all(versions.map(async (version) => {
+      await this.dependencies.storage.deleteObject(version.s3Key);
+      await this.dependencies.versions.delete(userId, documentId, version.versionNumber);
+    }));
+    await this.dependencies.documents.delete(userId, documentId);
+  }
+
   async createDownloadUrl(userId: string, documentId: string, versionNumber: number) {
     const version = await this.getOwnedVersion(userId, documentId, versionNumber);
     return { downloadUrl: await this.dependencies.storage.createDownloadUrl(version.s3Key, version.safeFileName), expiresIn: 900 };
