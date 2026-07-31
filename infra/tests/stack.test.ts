@@ -13,9 +13,9 @@ describe('VersionGuardStack', () => {
     template.hasResourceProperties('AWS::DynamoDB::Table', { KeySchema: [{ AttributeName: 'userId', KeyType: 'HASH' }, { AttributeName: 'entityKey', KeyType: 'RANGE' }] });
     template.hasResourceProperties('AWS::DynamoDB::Table', { KeySchema: [{ AttributeName: 'documentId', KeyType: 'HASH' }, { AttributeName: 'versionNumber', KeyType: 'RANGE' }] });
   });
-  it('configures Cognito JWT authorization and CloudFront', () => {
+  it('configures Cognito JWT authorization and S3 website hosting', () => {
     template.resourceCountIs('AWS::Cognito::UserPoolClient', 1);
     template.hasResourceProperties('AWS::ApiGatewayV2::Authorizer', { AuthorizerType: 'JWT' });
-    template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+    template.hasResourceProperties('AWS::S3::Bucket', { WebsiteConfiguration: { IndexDocument: 'index.html', ErrorDocument: 'index.html' } });
   });
 });

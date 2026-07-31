@@ -30,8 +30,10 @@ export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): P
     const userId = getUserId(event);
     const method = event.requestContext.http.method;
     const path = event.rawPath;
-    const documentId = event.pathParameters?.documentId;
-    const versionNumber = Number(event.pathParameters?.versionNumber);
+    const pathParts = path.split('/').filter(Boolean);
+    const documentId = event.pathParameters?.documentId ?? (pathParts[0] === 'documents' ? pathParts[1] : undefined);
+    const versionValue = event.pathParameters?.versionNumber ?? (pathParts[0] === 'documents' && pathParts[2] === 'versions' ? pathParts[3] : undefined);
+    const versionNumber = versionValue === undefined ? NaN : Number(versionValue);
     if (method === 'POST' && path === '/documents') { const body = parseBody(event); const input = validateDocumentInput(body.name, body.description); return response(201, await service.createDocument(userId, input.name, input.description)); }
     if (method === 'GET' && path === '/documents') return response(200, await service.listDocuments(userId));
     if (method === 'GET' && path === '/metrics') return response(200, await service.metrics(userId));
