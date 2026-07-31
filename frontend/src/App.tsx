@@ -1,4 +1,5 @@
 import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { Sha256 } from '@aws-crypto/sha256-js';
 import { DocumentRecord, MetricsResponse, VersionRecord } from '@versionguard/shared';
 import { createApiClient, uploadWithProgress } from './api';
 import { RuntimeConfig } from './types';
@@ -11,8 +12,14 @@ const formatDate = (date: string) => new Intl.DateTimeFormat(undefined, { month:
 
 async function sha256(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-  const digest = await crypto.subtle.digest('SHA-256', buffer);
-  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  if (crypto.subtle) {
+    const digest = await crypto.subtle.digest('SHA-256', buffer);
+    return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  } else {
+    const fallback = new Sha256();
+    fallback.update(new Uint8Array(buffer));
+    return Array.from(await fallback.digest()).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
 }
 
 export default function App({ config }: { config: RuntimeConfig }) {
