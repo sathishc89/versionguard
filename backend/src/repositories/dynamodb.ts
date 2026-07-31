@@ -21,23 +21,31 @@ export class DynamoDocumentRepository implements DocumentRepository {
 
   async getOwned(userId: string, documentId: string): Promise<DocumentRecord | undefined> {
     const result = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, ConsistentRead: true }));
-    return result.Item as DocumentRecord | undefined;
+    if (result.Item) return result.Item as DocumentRecord;
+    const documents = await this.listByUser(userId);
+    return documents.find((document) => document.documentId === documentId || document.entityKey === `DOC#${documentId}`);
   }
 
   async delete(userId: string, documentId: string): Promise<void> {
-    await this.client.send(new DeleteCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, ConditionExpression: 'attribute_exists(userId)' }));
+    const document = await this.getOwned(userId, documentId);
+    if (!document) return;
+    await this.client.send(new DeleteCommand({ TableName: this.tableName, Key: { userId, entityKey: document.entityKey }, ConditionExpression: 'attribute_exists(userId)' }));
   }
 
   async allocateVersion(userId: string, documentId: string, now: string) {
-    const result = await this.client.send(new UpdateCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, UpdateExpression: 'SET nextVersionNumber = if_not_exists(nextVersionNumber, :first) + :one, updatedAt = :now', ConditionExpression: 'attribute_exists(userId)', ExpressionAttributeValues: { ':first': 1, ':one': 1, ':now': now }, ReturnValues: 'ALL_NEW' }));
-    const document = result.Attributes as DocumentRecord;
-    return { document, versionNumber: document.nextVersionNumber - 1 };
+    const existingDocument = await this.getOwned(userId, documentId);
+    if (!existingDocument) throw new Error('Document not found.');
+    const result = await this.client.send(new UpdateCommand({ TableName: this.tableName, Key: { userId, entityKey: existingDocument.entityKey }, UpdateExpression: 'SET nextVersionNumber = if_not_exists(nextVersionNumber, :first) + :one, updatedAt = :now', ConditionExpression: 'attribute_exists(userId)', ExpressionAttributeValues: { ':first': 1, ':one': 1, ':now': now }, ReturnValues: 'ALL_NEW' }));
+    const updatedDocument = result.Attributes as DocumentRecord;
+    return { document: updatedDocument, versionNumber: updatedDocument.nextVersionNumber - 1 };
   }
 
   async recordCompletedVersion(userId: string, documentId: string, versionNumber: number, now: string): Promise<void> {
-    await this.client.send(new UpdateCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, UpdateExpression: 'SET versionCount = if_not_exists(versionCount, :zero) + :one, updatedAt = :now', ConditionExpression: 'attribute_exists(userId)', ExpressionAttributeValues: { ':zero': 0, ':one': 1, ':now': now } }));
+    const document = await this.getOwned(userId, documentId);
+    const key = { userId, entityKey: document?.entityKey ?? `DOC#${documentId}` };
+    await this.client.send(new UpdateCommand({ TableName: this.tableName, Key: key, UpdateExpression: 'SET versionCount = if_not_exists(versionCount, :zero) + :one, updatedAt = :now', ConditionExpression: 'attribute_exists(userId)', ExpressionAttributeValues: { ':zero': 0, ':one': 1, ':now': now } }));
     try {
-      await this.client.send(new UpdateCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, UpdateExpression: 'SET latestVersionNumber = :version, updatedAt = :now', ConditionExpression: 'attribute_not_exists(latestVersionNumber) OR latestVersionNumber < :version', ExpressionAttributeValues: { ':version': versionNumber, ':now': now } }));
+      await this.client.send(new UpdateCommand({ TableName: this.tableName, Key: key, UpdateExpression: 'SET latestVersionNumber = :version, updatedAt = :now', ConditionExpression: 'attribute_not_exists(latestVersionNumber) OR latestVersionNumber < :version', ExpressionAttributeValues: { ':version': versionNumber, ':now': now } }));
     } catch (error) {
       if ((error as { name?: string }).name !== 'ConditionalCheckFailedException') throw error;
     }
