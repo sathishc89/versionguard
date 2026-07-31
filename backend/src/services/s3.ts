@@ -22,9 +22,6 @@ export class S3StorageService implements StorageService {
       Bucket: this.bucketName,
       Key: key,
       ContentType: contentType,
-      ContentLength: size,
-      Metadata: { sha256 },
-      ServerSideEncryption: 'AES256',
     });
     return getSignedUrl(this.client, command, { expiresIn: PRESIGNED_UPLOAD_EXPIRY_SECONDS });
   }

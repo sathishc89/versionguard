@@ -31,8 +31,8 @@ export async function uploadWithProgress(url: string, file: File, onProgress: (p
     request.open('PUT', url);
     request.setRequestHeader('content-type', file.type || 'application/octet-stream');
     request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100)); };
-    request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error('Upload failed.'));
-    request.onerror = () => reject(new Error('Upload failed.'));
+    request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error(`Upload failed (${request.status}): ${request.responseText || 'S3 rejected the upload.'}`));
+    request.onerror = () => reject(new Error('Upload failed: the browser could not reach S3.'));
     request.send(file);
   });
 }
