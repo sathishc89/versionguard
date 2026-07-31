@@ -69,9 +69,6 @@ export default function App({ config, onSignOut }: { config: RuntimeConfig; onSi
     let uploadStage = 'preparing file';
     try {
       const hash = await sha256(uploadFile);
-      uploadStage = 'checking existing versions';
-      const existing = versions.find((version) => version.sha256 === hash) ?? (await api<VersionRecord[]>(`/documents/${selectedDocument.documentId}/versions`)).find((version) => version.sha256 === hash);
-      if (existing) { setDuplicateVersion(existing); return; }
       uploadStage = 'requesting upload URL';
       const presign = await api<{ uploadUrl: string; versionNumber: number }>(`/documents/${selectedDocument.documentId}/versions/presign`, { method: 'POST', body: JSON.stringify({ fileName: uploadFile.name, contentType: uploadFile.type || 'application/octet-stream', size: uploadFile.size, sha256: hash, note: uploadNote }) });
       uploadStage = 'uploading file';
@@ -79,7 +76,17 @@ export default function App({ config, onSignOut }: { config: RuntimeConfig; onSi
       uploadStage = 'confirming upload';
       await api(`/documents/${selectedDocument.documentId}/versions/${presign.versionNumber}/complete`, { method: 'POST' });
       setDialog(null); setToast('Upload successful'); await refresh();
-    } catch (caught) { const error = caught as Error & { requestId?: string }; setToast(`Upload failed while ${uploadStage}: ${error.message}${error.requestId ? ` (trace ${error.requestId})` : ''}`); } finally { setBusy(false); }
+    } catch (caught) {
+      const error = caught as Error & { status?: number; requestId?: string };
+      if (error.status === 404 && error.message === 'Document not found.') {
+        setDialog(null);
+        setSelectedDocument(null);
+        await refresh();
+        setToast('That document is no longer available. The document list was refreshed; please create or select a current document.');
+      } else {
+        setToast(`Upload failed while ${uploadStage}: ${error.message}${error.requestId ? ` (trace ${error.requestId})` : ''}`);
+      }
+    } finally { setBusy(false); }
   };
   const useLatest = async () => { if (!selectedDocument || !selectedVersion) return; setBusy(true); try { const list = await api<VersionRecord[]>(`/documents/${selectedDocument.documentId}/versions`); const latest = list.find((version) => version.status === 'COMPLETE'); if (latest) await share(selectedDocument, latest, false); } catch (caught) { setToast((caught as Error).message); } finally { setBusy(false); } };
   const download = async (version: VersionRecord) => { try { const result = await api<{ downloadUrl: string }>(`/documents/${version.documentId}/versions/${version.versionNumber}/download-url`); window.open(result.downloadUrl, '_blank', 'noopener,noreferrer'); } catch (caught) { setToast(`Download failure: ${(caught as Error).message}`); } };
