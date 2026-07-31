@@ -22,7 +22,7 @@ async function sha256(file: File): Promise<string> {
   }
 }
 
-export default function App({ config }: { config: RuntimeConfig }) {
+export default function App({ config, onSignOut }: { config: RuntimeConfig; onSignOut?: () => void }) {
   const api = useMemo(() => createApiClient(config), [config]);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
@@ -66,22 +66,27 @@ export default function App({ config }: { config: RuntimeConfig }) {
   const upload = async () => {
     if (!selectedDocument || !uploadFile) return;
     setBusy(true); setUploadProgress(0);
+    let uploadStage = 'preparing file';
     try {
       const hash = await sha256(uploadFile);
+      uploadStage = 'checking existing versions';
       const existing = versions.find((version) => version.sha256 === hash) ?? (await api<VersionRecord[]>(`/documents/${selectedDocument.documentId}/versions`)).find((version) => version.sha256 === hash);
       if (existing) { setDuplicateVersion(existing); return; }
+      uploadStage = 'requesting upload URL';
       const presign = await api<{ uploadUrl: string; versionNumber: number }>(`/documents/${selectedDocument.documentId}/versions/presign`, { method: 'POST', body: JSON.stringify({ fileName: uploadFile.name, contentType: uploadFile.type || 'application/octet-stream', size: uploadFile.size, sha256: hash, note: uploadNote }) });
+      uploadStage = 'uploading file';
       await uploadWithProgress(presign.uploadUrl, uploadFile, setUploadProgress);
+      uploadStage = 'confirming upload';
       await api(`/documents/${selectedDocument.documentId}/versions/${presign.versionNumber}/complete`, { method: 'POST' });
       setDialog(null); setToast('Upload successful'); await refresh();
-    } catch (caught) { setToast((caught as Error).message); } finally { setBusy(false); }
+    } catch (caught) { const error = caught as Error & { requestId?: string }; setToast(`Upload failed while ${uploadStage}: ${error.message}${error.requestId ? ` (trace ${error.requestId})` : ''}`); } finally { setBusy(false); }
   };
   const useLatest = async () => { if (!selectedDocument || !selectedVersion) return; setBusy(true); try { const list = await api<VersionRecord[]>(`/documents/${selectedDocument.documentId}/versions`); const latest = list.find((version) => version.status === 'COMPLETE'); if (latest) await share(selectedDocument, latest, false); } catch (caught) { setToast((caught as Error).message); } finally { setBusy(false); } };
   const download = async (version: VersionRecord) => { try { const result = await api<{ downloadUrl: string }>(`/documents/${version.documentId}/versions/${version.versionNumber}/download-url`); window.open(result.downloadUrl, '_blank', 'noopener,noreferrer'); } catch (caught) { setToast(`Download failure: ${(caught as Error).message}`); } };
   const closeDialog = () => { if (!busy) setDialog(null); };
 
   return <main className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">VG</span><div><strong>VersionGuard</strong><small>Share the right version</small></div></div><div className="header-actions"><span className="status-dot">Protected workspace</span></div></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">VG</span><div><strong>VersionGuard</strong><small>Share the right version</small></div></div><div className="header-actions"><span className="status-dot">Protected workspace</span>{onSignOut && <button className="ghost-button" onClick={onSignOut}>Sign out</button>}</div></header>
     <section className="hero"><div><p className="eyebrow">DOCUMENT CONTROL</p><h1>Make outdated shares<br /><em>impossible to miss.</em></h1><p className="hero-copy">VersionGuard watches the version you are about to share and pauses you when a newer file is ready.</p></div><button className="primary-button" onClick={() => setDialog('create')}>+ Create document</button></section>
     <section className="metrics" aria-label="Workspace metrics"><Metric label="Documents" value={metrics?.totalDocuments ?? 0} accent="blue" /><Metric label="Completed versions" value={metrics?.totalVersions ?? 0} accent="green" /><Metric label="Stale warnings" value={metrics?.staleWarnings ?? 0} accent="amber" /><Metric label="Older shares" value={metrics?.forcedOlderShares ?? 0} accent="red" /><div className="metric metric-wide"><span>Latest-version share rate</span><strong>{metrics?.latestSharePercentage ?? 0}%</strong><div className="meter"><i style={{ width: `${metrics?.latestSharePercentage ?? 0}%` }} /></div></div></section>
     <section className="content"><div className="section-heading"><div><p className="eyebrow">YOUR LIBRARY</p><h2>Documents</h2></div><label className="search"><span>⌕</span><input aria-label="Search documents" placeholder="Search documents" value={query} onChange={(event) => setQuery(event.target.value)} /></label></div>
