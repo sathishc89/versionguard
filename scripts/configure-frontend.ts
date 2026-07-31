@@ -17,11 +17,11 @@ async function main() {
     outputs = Object.fromEntries((result.Stacks?.[0]?.Outputs ?? []).map((output) => [output.OutputKey ?? '', output.OutputValue ?? '']));
   }
   if (!outputs?.UserPoolId || !outputs.UserPoolClientId || !outputs.ApiUrl) throw new Error(`Could not find VersionGuard outputs for ${stackName}. Deploy infrastructure first.`);
-  const runtime = { region: outputs.Region ?? region, userPoolId: outputs.UserPoolId, userPoolClientId: outputs.UserPoolClientId, apiUrl: outputs.ApiUrl, cloudFrontUrl: outputs.CloudFrontUrl ?? '' };
+  const runtime = { region: outputs.Region ?? region, userPoolId: outputs.UserPoolId, userPoolClientId: outputs.UserPoolClientId, apiUrl: outputs.ApiUrl, frontendUrl: outputs.FrontendWebsiteUrl ?? '' };
   await writeFile(path.resolve('frontend/public/runtime-config.json'), `${JSON.stringify(runtime, null, 2)}\n`, 'utf8');
   console.log(`Frontend runtime configuration written for ${stackName}.`);
   console.log(`API: ${runtime.apiUrl}`);
-  console.log(`CloudFront: ${runtime.cloudFrontUrl}`);
+  console.log(`Frontend: ${runtime.frontendUrl}`);
 }
 
 main().catch((error) => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; });

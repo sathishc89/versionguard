@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as cdk from 'aws-cdk-lib';
-import { aws_apigatewayv2_authorizers as authorizers, aws_apigatewayv2 as apigwv2, aws_cognito as cognito, aws_dynamodb as dynamodb, aws_lambda as lambda, aws_logs as logs, aws_s3 as s3, aws_cloudfront as cloudfront, aws_cloudfront_origins as origins } from 'aws-cdk-lib';
+import { aws_apigatewayv2_authorizers as authorizers, aws_apigatewayv2 as apigwv2, aws_cognito as cognito, aws_dynamodb as dynamodb, aws_lambda as lambda, aws_logs as logs, aws_s3 as s3 } from 'aws-cdk-lib';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Construct } from 'constructs';
@@ -32,9 +32,11 @@ export class VersionGuardStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      blockPublicAccess: new s3.BlockPublicAccess({ blockPublicAcls: true, blockPublicPolicy: false, ignorePublicAcls: true, restrictPublicBuckets: false }),
       encryption: s3.BucketEncryption.S3_MANAGED,
-      enforceSSL: true,
+      publicReadAccess: true,
+      websiteIndexDocument: 'index.html',
+      websiteErrorDocument: 'index.html',
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
@@ -53,15 +55,12 @@ export class VersionGuardStack extends cdk.Stack {
     const jwtAuthorizer = new authorizers.HttpJwtAuthorizer('CognitoAuthorizer', issuer, { jwtAudience: [userPoolClient.userPoolClientId] });
     httpApi.addRoutes({ path: '/{proxy+}', methods: [apigwv2.HttpMethod.ANY], integration, authorizer: jwtAuthorizer });
 
-    const distribution = new cloudfront.Distribution(this, 'FrontendDistribution', { defaultRootObject: 'index.html', defaultBehavior: { origin: origins.S3BucketOrigin.withOriginAccessControl(frontendBucket), viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS, cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED }, errorResponses: [{ httpStatus: 403, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.minutes(1) }, { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.minutes(1) }] });
-
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
     new cdk.CfnOutput(this, 'ApiUrl', { value: httpApi.url ?? '' });
     new cdk.CfnOutput(this, 'Region', { value: this.region });
     new cdk.CfnOutput(this, 'UploadsBucketName', { value: uploadsBucket.bucketName });
     new cdk.CfnOutput(this, 'FrontendBucketName', { value: frontendBucket.bucketName });
-    new cdk.CfnOutput(this, 'CloudFrontDistributionId', { value: distribution.distributionId });
-    new cdk.CfnOutput(this, 'CloudFrontUrl', { value: `https://${distribution.domainName}` });
+    new cdk.CfnOutput(this, 'FrontendWebsiteUrl', { value: frontendBucket.bucketWebsiteUrl });
   }
 }
