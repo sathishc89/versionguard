@@ -48,7 +48,7 @@ export class VersionGuardStack extends cdk.Stack {
     versionsTable.grantReadWriteData(apiFunction);
     uploadsBucket.grantReadWrite(apiFunction);
 
-    const httpApi = new apigwv2.HttpApi(this, 'HttpApi', { apiName: 'versionguard-api', corsPreflight: { allowHeaders: ['authorization', 'content-type'], allowMethods: [apigwv2.CorsHttpMethod.ANY], allowOrigins: ['*'], maxAge: cdk.Duration.hours(1) } });
+    const httpApi = new apigwv2.HttpApi(this, 'HttpApi', { apiName: 'versionguard-api', corsPreflight: { allowHeaders: ['authorization', 'content-type', 'x-versionguard-client-request-id'], allowMethods: [apigwv2.CorsHttpMethod.ANY], allowOrigins: ['*'], maxAge: cdk.Duration.hours(1) } });
     const integration = new HttpLambdaIntegration('ApiIntegration', apiFunction);
     httpApi.addRoutes({ path: '/health', methods: [apigwv2.HttpMethod.GET], integration });
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
