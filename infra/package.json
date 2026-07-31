@@ -1,0 +1,22 @@
+{
+  "name": "@versionguard/infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --outputs-file ../cdk-outputs.json --require-approval never"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.170.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

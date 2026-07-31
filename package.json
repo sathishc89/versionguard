@@ -1,0 +1,24 @@
+{
+  "name": "versionguard",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["shared", "frontend", "backend", "infra"],
+  "scripts": {
+    "install:all": "npm install",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "synth": "npm run synth --workspace infra",
+    "deploy:infra": "npm run deploy --workspace infra",
+    "configure:frontend": "tsx scripts/configure-frontend.ts",
+    "deploy:frontend": "tsx scripts/deploy-frontend.ts",
+    "deploy": "tsx scripts/deploy.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "@aws-sdk/client-cloudformation": "^3.716.0",
+    "@aws-sdk/client-cloudfront": "^3.716.0",
+    "@aws-sdk/client-s3": "^3.716.0"
+  }
+}

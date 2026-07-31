@@ -1,0 +1,11 @@
+node_modules/
+dist/
+cdk.out/
+coverage/
+.env
+.env.*
+!.env.example
+frontend/public/runtime-config.json
+cdk-outputs.json
+*.log
+.DS_Store

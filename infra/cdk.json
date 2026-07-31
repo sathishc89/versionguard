@@ -1,0 +1,7 @@
+{
+  "app": "npx tsx bin/versionguard.ts",
+  "context": {
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/aws-cloudfront:useOriginAccessControl": true
+  }
+}
