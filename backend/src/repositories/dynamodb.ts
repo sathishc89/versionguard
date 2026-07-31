@@ -20,7 +20,7 @@ export class DynamoDocumentRepository implements DocumentRepository {
   }
 
   async getOwned(userId: string, documentId: string): Promise<DocumentRecord | undefined> {
-    const result = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` } }));
+    const result = await this.client.send(new GetCommand({ TableName: this.tableName, Key: { userId, entityKey: `DOC#${documentId}` }, ConsistentRead: true }));
     return result.Item as DocumentRecord | undefined;
   }
 
