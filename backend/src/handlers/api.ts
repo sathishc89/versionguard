@@ -15,7 +15,7 @@ const service = new VersionGuardService({
 });
 
 function response(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
-  return { statusCode, headers: { 'content-type': 'application/json', 'access-control-allow-origin': process.env.FRONTEND_ORIGIN ?? '*' }, body: JSON.stringify(body) };
+  return { statusCode, headers: { 'content-type': 'application/json', 'access-control-allow-origin': process.env.FRONTEND_ORIGIN ?? '*', 'access-control-allow-headers': 'authorization,content-type', 'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS' }, body: JSON.stringify(body) };
 }
 
 function parseBody(event: APIGatewayProxyEventV2WithJWTAuthorizer): Record<string, unknown> {
@@ -25,6 +25,7 @@ function parseBody(event: APIGatewayProxyEventV2WithJWTAuthorizer): Record<strin
 
 export async function handler(event: APIGatewayProxyEventV2WithJWTAuthorizer): Promise<APIGatewayProxyResultV2> {
   if (event.rawPath === '/health') return response(200, { status: 'ok' });
+  if (event.requestContext.http.method === 'OPTIONS') return response(204, {});
   try {
     const userId = getUserId(event);
     const method = event.requestContext.http.method;

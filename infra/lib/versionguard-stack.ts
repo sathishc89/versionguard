@@ -53,7 +53,8 @@ export class VersionGuardStack extends cdk.Stack {
     httpApi.addRoutes({ path: '/health', methods: [apigwv2.HttpMethod.GET], integration });
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
     const jwtAuthorizer = new authorizers.HttpJwtAuthorizer('CognitoAuthorizer', issuer, { jwtAudience: [userPoolClient.userPoolClientId] });
-    httpApi.addRoutes({ path: '/{proxy+}', methods: [apigwv2.HttpMethod.ANY], integration, authorizer: jwtAuthorizer });
+    httpApi.addRoutes({ path: '/{proxy+}', methods: [apigwv2.HttpMethod.OPTIONS], integration });
+    httpApi.addRoutes({ path: '/{proxy+}', methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST, apigwv2.HttpMethod.PUT, apigwv2.HttpMethod.PATCH, apigwv2.HttpMethod.DELETE, apigwv2.HttpMethod.HEAD], integration, authorizer: jwtAuthorizer });
 
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new cdk.CfnOutput(this, 'UserPoolClientId', { value: userPoolClient.userPoolClientId });
